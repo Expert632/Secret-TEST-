@@ -1,4 +1,4 @@
-name: Gitleaks Security Gate (Separate Pipeline)
+name: Gitleaks Security Gate
 
 on:
   push:
@@ -22,11 +22,10 @@ jobs:
           sudo mv gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      - name: Run Gitleaks (Security Gate)
-        id: gitleaks_gate
+      - name: Run Gitleaks (SECURITY GATE)
         run: |
           echo "Running Gitleaks SECURITY GATE..."
-          # On laisse Gitleaks décider : 0 = OK, !=0 = secrets trouvés
+          # ❗PAS de || true, PAS de exit 0 → si secrets trouvés, le job sera ROUGE
           gitleaks detect \
             --source . \
             --report-format json \
