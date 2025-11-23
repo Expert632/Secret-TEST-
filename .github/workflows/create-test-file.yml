@@ -1,0 +1,43 @@
+name: Create Test Secret File
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-test-file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Create test_secret.py (contains detectable secrets)
+        run: |
+          cat > test_secret.py <<'PY'
+          # test_secret.py
+          # Demo file for Gitleaks testing - contains fake secrets for pedagogy
+          
+          # Fake GitHub token (pattern ghp_)
+          GITHUB_TOKEN = "ghp_FAKEFAKEFAKE1234567890DEMODEMODEMO"
+          
+          # Fake AWS keys (pattern AKIA...)
+          AWS_ACCESS_KEY_ID = "AKIA1234567890FAKEKEYDEMO"
+          AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYFAKESECRETKEY123"
+          
+          # Fake DB password
+          DB_PASSWORD = "SuperSecretPassword123!"
+          
+          if __name__ == "__main__":
+              print("Test secrets file created (demo only).")
+          PY
+
+      - name: Show created file
+        run: |
+          echo "----- test_secret.py -----"
+          sed -n '1,200p' test_secret.py || true
+          echo "--------------------------"
+
+      - name: Upload test file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test_secret_file
+          path: test_secret.py
