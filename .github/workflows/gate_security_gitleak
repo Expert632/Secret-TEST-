@@ -1,0 +1,81 @@
+name: Gitleaks Security Gate (Separate Pipeline)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  gitleaks-security-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Gitleaks
+        run: |
+          echo "Installing Gitleaks v8.29.0..."
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.29.0/gitleaks_8.29.0_linux_x64.tar.gz -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run Gitleaks (Security Gate)
+        id: gitleaks_gate
+        run: |
+          echo "Running Gitleaks SECURITY GATE..."
+          # On laisse Gitleaks décider : 0 = OK, !=0 = secrets trouvés
+          gitleaks detect \
+            --source . \
+            --report-format json \
+            --report-path gitleaks-report.json
+
+          echo "Gitleaks scan finished."
+
+      - name: Install jq
+        if: always()
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "Installing jq..."
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
+
+      - name: Generate human-readable TXT report
+        if: always()
+        run: |
+          echo "=== Gitleaks Security Gate Report (human readable) ===" > gitleaks-gate-report.txt
+
+          if [ -f gitleaks-report.json ]; then
+            if [ -s gitleaks-report.json ]; then
+              jq -r '
+                if (type == "array" and length > 0) then
+                  .[] | "Rule: \(.rule_id // "N/A")\nDescription: \(.description // "N/A")\nFile: \(.file // "N/A")\nStart Line: \(.start_line // "N/A")\nEnd Line: \(.end_line // "N/A")\nSecret: \(.secret // "REDACTED")\n---"
+                else
+                  "No findings in JSON report."
+                end
+              ' gitleaks-report.json >> gitleaks-gate-report.txt || echo "Impossible to parse JSON, see gitleaks-report.json." >> gitleaks-gate-report.txt
+            else
+              echo "Empty JSON report file." >> gitleaks-gate-report.txt
+            fi
+          else
+            echo "No gitleaks-report.json file found." >> gitleaks-gate-report.txt
+          fi
+
+      - name: Upload JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-json-report-gate
+          path: gitleaks-report.json
+          if-no-files-found: warn
+
+      - name: Upload TXT report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-txt-report-gate
+          path: gitleaks-gate-report.txt
+          if-no-files-found: warn
