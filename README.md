@@ -18,7 +18,7 @@ This repository is designed as a **pedagogical lab** to demonstrate how GitHub a
 - Clone it locally to your development environment:  
 
 ```bash
-git clone https://github.com/username/gitleaks-security-lab.git
+git clone https://github.com/Expert632/gitleaks-security-lab.git
 cd gitleaks-security-lab
 ````
 
