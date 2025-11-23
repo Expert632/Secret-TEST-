@@ -11,11 +11,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout du code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Installation Gitleaks
+      - name: List repository files (debug)
+        run: |
+          echo "Workspace:"
+          pwd
+          ls -la
+          echo "Recursive listing (first 500 lines):"
+          ls -R | sed -n '1,500p' || true
+
       - name: Install Gitleaks
         run: |
           echo "Installing Gitleaks v8.29.0..."
@@ -24,31 +30,37 @@ jobs:
           sudo mv gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      # 3️⃣ Scan Gitleaks (Security Gate)
       - name: Run Gitleaks (Security Gate)
+        id: run_gitleaks
         run: |
           echo "Running Gitleaks Security Gate..."
-          # ❌ PAS de || true, PAS de exit 0
+          # Run gitleaks and let it return its exit code (non-zero = findings => job fails)
+          set -o pipefail
           gitleaks detect --source . --report-format json --report-path gitleaks-report.json
-          echo "Gitleaks scan finished."
-
-      # 4️⃣ Installer jq pour traitement JSON
-      - name: Install jq
+          echo "gitleaks finished with exit code $?"
+      
+      # The following steps must run even if the scan fails, to upload reports for analysis
+      - name: Install jq (for report conversion)
         if: always()
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y jq
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
 
-      # 5️⃣ Génération rapport lisible TXT
-      - name: Generate human-readable report
+      - name: Generate human-readable TXT report
         if: always()
         run: |
           echo "=== Gitleaks Security Gate Report ===" > gitleaks-gate-report.txt
           if [ -f gitleaks-report.json ]; then
             if [ -s gitleaks-report.json ]; then
               jq -r '
-                .[] | "Rule: \(.rule_id // "N/A")\nDescription: \(.description // "N/A")\nFile: \(.file // "N/A")\nStart Line: \(.start_line // "N/A")\nEnd Line: \(.end_line // "N/A")\nSecret: \(.secret // "REDACTED")\n---"
-              ' gitleaks-report.json >> gitleaks-gate-report.txt
+                if (type == "array" and length > 0) then
+                  .[] | "Rule: \(.rule_id // \"N/A\")\nDescription: \(.description // \"N/A\")\nFile: \(.file // \"N/A\")\nStart Line: \(.start_line // \"N/A\")\nEnd Line: \(.end_line // \"N/A\")\nSecret: \(.secret // \"REDACTED\")\n---"
+                else
+                  "No findings in JSON report."
+                end
+              ' gitleaks-report.json >> gitleaks-gate-report.txt || echo "Unable to parse JSON; see gitleaks-report.json" >> gitleaks-gate-report.txt
             else
               echo "No findings in JSON report." >> gitleaks-gate-report.txt
             fi
@@ -56,7 +68,6 @@ jobs:
             echo "No gitleaks-report.json file found." >> gitleaks-gate-report.txt
           fi
 
-      # 6️⃣ Upload rapports JSON + TXT
       - name: Upload JSON report
         if: always()
         uses: actions/upload-artifact@v4
