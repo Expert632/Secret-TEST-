@@ -1,6 +1,3 @@
-Here’s a **comprehensive and pedagogical README.md** in English following exactly your requested steps, written for clarity and teaching purposes:
-
-````markdown
 # GitHub Secrets Detection and Security Gate Lab
 
 This repository is designed as a **pedagogical lab** to demonstrate how GitHub and Gitleaks can be used to detect secrets and critical vulnerabilities in code. The lab covers the creation of code files, pipelines, and interpretation of scan reports.
@@ -164,9 +161,3 @@ After completing this lab, students should be able to:
 
 ```
 
----
-
-I can also create a **version with screenshots, step-by-step commands, and artifacts instructions** for a fully interactive lab if you want.  
-
-Do you want me to do that next?
-```
